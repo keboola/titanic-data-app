@@ -5,3 +5,4 @@ streamlit-aggrid
 plotly
 python-dotenv
 requests
+kbcstorage

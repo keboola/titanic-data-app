@@ -7,6 +7,7 @@ import plotly.express as px
 from dotenv import load_dotenv
 import os
 import requests
+from kbcstorage.client import Client
 
 # FILES
 from my_package.style import css_style,css_style_center,div_style_start,div_style_end
@@ -19,8 +20,42 @@ st.set_page_config(layout="wide")
 # Map secret
 secret_dataappname = st.secrets["DataAppName"]
 
-# Read the CSV file
 
+# Keboola Storage Buckets Section
+st.markdown('<h2 class="subheader">Storage Buckets</h2>', unsafe_allow_html=True)
+
+try:
+    # Initialize Keboola Storage Client
+    kbc_url = os.environ.get('KBC_URL')
+    kbc_token = os.environ.get('KBC_TOKEN')
+
+    if kbc_url and kbc_token:
+        client = Client(kbc_url, kbc_token)
+        buckets = client.buckets.list()
+
+        # Display buckets in a table
+        if buckets:
+            bucket_data = []
+            for bucket in buckets:
+                bucket_data.append({
+                    'ID': bucket.get('id', ''),
+                    'Name': bucket.get('name', ''),
+                    'Stage': bucket.get('stage', ''),
+                    'Description': bucket.get('description', '')
+                })
+
+            bucket_df = pd.DataFrame(bucket_data)
+            st.dataframe(bucket_df, use_container_width=True)
+        else:
+            st.info("No storage buckets found.")
+    else:
+        st.error("Keboola environment variables (KBC_URL, KBC_TOKEN) not configured.")
+
+except Exception as e:
+    st.error(f"Error connecting to Keboola Storage: {str(e)}")
+
+
+# Read the CSV file
 file_path = "/data/in/tables/TitanicDemoData.csv"
 df_data = pd.read_csv(file_path)
 
@@ -72,7 +107,7 @@ col1, col2, col3 = st.columns(3)
 for i, metric in enumerate(metrics):
     column_index = i % 3
     metric_label, metric_value = metric
-    
+
     # Get the appropriate column based on the column index
     if column_index == 0:
         col = col1
@@ -80,7 +115,7 @@ for i, metric in enumerate(metrics):
         col = col2
     else:
         col = col3
-    
+
     # Find the corresponding icon for the metric label
     icon_path = None
     for key in my_dict.keys():
@@ -114,35 +149,35 @@ col4, col8 = st.columns(2)
 # Column 4
 with col4:
     st.write(div_style_start, unsafe_allow_html=True)
-    
+
     # List of unique sex in the dataframe
     sex = df_data["Sex"].unique().tolist()
-    
+
     # Multiselect filter for gender
     sex_selection = st.multiselect("Gender", sex)
-    
+
     # Filter the dataframe based on sex selection
     if sex_selection:
         df_filtered = df_filtered[df_data["Sex"].isin(sex_selection)]
-    
+
     st.write(div_style_end, unsafe_allow_html=True)
 
 # Column 8
 with col8:
     st.write(div_style_start, unsafe_allow_html=True)
-    
+
     # Define the options for the multi-select dropdown
     options = ["Unspecified", "Yes", "No"]
-    
+
     # Multi-select dropdown for survived filter
     selected_options = st.multiselect("Survived", options)
-    
+
     # Filter the data based on the selected options
     if "Yes" in selected_options:
         df_filtered = df_filtered[df_filtered["Survived"] == 1]
     if "No" in selected_options:
         df_filtered = df_filtered[df_filtered["Survived"] == 0]
-    
+
     st.write(div_style_end, unsafe_allow_html=True)
 
 # Age Filter
@@ -170,18 +205,18 @@ st.container()
 
 with tab1:
     st.markdown(title["dataTable"], unsafe_allow_html=True)
-    
+
     # Select desired columns for the table
     selected_column = df_filtered[["Name", "Sex", "Survived", "Age", "Fare", "Boarded", "Destination"]]
-    
+
     # Create a new DataFrame for the table
     df_for_table = pd.DataFrame(selected_column)
-    
+
     # Configure grid options for the table
     gb = GridOptionsBuilder.from_dataframe(df_for_table)
     gb.configure_pagination(paginationAutoPageSize=False, paginationPageSize=10)  # Add pagination
     gridOptions = gb.build()
-    
+
     # Define column definitions for the table
     gridOptions['columnDefs'] = [
         {
@@ -223,21 +258,21 @@ with tab1:
         },
         # Add more column definitions if needed
     ]
-    
+
     # Display the AgGrid table
     AgGrid(df_for_table,
             gridOptions=gridOptions,
             theme='alpine',
             enable_enterprise_modules=False,
             columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS)
-    
+
     chart1, chart2 = st.columns(2)
-    
+
     # Prepare data for charts
     age_categories = pd.cut(df_filtered["Age"], bins=np.arange(0, 100, 10), right=False)
     age_counts = age_categories.value_counts().sort_index()
     survived_counts = df_filtered.groupby(age_categories)["Survived"].sum()
- 
+
     with chart1:
         # Display the bar chart
         st.markdown('<p class="subheader-2">Survivors within Age Categories</p>', unsafe_allow_html=True)
@@ -264,7 +299,7 @@ with tab1:
         fig.update_yaxes(title_text='Number of People')  # Set y-axis label
         # Display the Plotly figure
         st.plotly_chart(fig, use_container_width=True)
-    
+
 
 
     with chart2:
@@ -279,33 +314,33 @@ with tab1:
         fig = px.bar(prob_df, x='Age Category', y='Probability',
                     labels={'Probability': 'Probability'},
                     color_discrete_sequence=['#3CA0FF'])
-        
+
         # Display the Plotly figure
         st.plotly_chart(fig, use_container_width=True)
 
-    
+
 with tab2:
     # Display raw data table
     st.markdown(title["rawData"], unsafe_allow_html=True)
-    
+
     # Copy filtered data to a new DataFrame
     df_filtered_raw = df_filtered
-    
+
     # Configure grid options for the raw data table
     raw = GridOptionsBuilder.from_dataframe(df_filtered_raw)
     raw.configure_pagination(paginationAutoPageSize=False, paginationPageSize=50)   # Add pagination
-    
+
     st.dataframe(df_filtered)
 
 
 # Add description section
 st.markdown(title["description"], unsafe_allow_html=True)
-      
+
 st.write(html_code, unsafe_allow_html=True)
-    
+
 # Center the image using CSS styling
 st.markdown(css_style_center,unsafe_allow_html=True)
-    
+
 # Display the logo with width and position centered to the right and to the left
 st.markdown(
     f"""
