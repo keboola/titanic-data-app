@@ -25,8 +25,13 @@ file_path = "/data/in/tables/TitanicDemoData.csv"
 df_data = pd.read_csv(file_path)
 
 
+# Static assets ship next to this script, so the path is derived from it.
+# An absolute /home/appuser path only exists on the older streamlit images; the newer ones
+# mount the repository at /app/src and every open() below raises FileNotFoundError there.
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+
 # Set logo image path and put in on to the right top
-logo_image = os.path.abspath("/home/appuser/app/static/keboola.png")
+logo_image = os.path.join(STATIC_DIR, "keboola.png")
 logo_html = f'<div style="display: flex; justify-content: flex-end;"><img src="data:image/png;base64,{base64.b64encode(open(logo_image, "rb").read()).decode()}" style="width: 100px; margin-left: -10px;"></div>'
 st.markdown(f"{logo_html}", unsafe_allow_html=True)
 
@@ -92,7 +97,7 @@ for i, metric in enumerate(metrics):
 
     if icon_path is not None:
         with col:
-            icon_image = os.path.abspath(f"/home/appuser/app/static/{icon_path}")
+            icon_image = os.path.join(STATIC_DIR, icon_path)
             # Display the icon and metric information
             st.markdown(f'''
                 <div class="div-container" style="display:flex; margin:10px">
